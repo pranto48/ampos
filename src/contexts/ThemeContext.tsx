@@ -1,10 +1,13 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
 type Theme = 'default' | 'liquid-glass';
+type Wallpaper = 'none' | 'aurora' | 'waves' | 'particles' | 'gradient' | 'nebula';
 
 interface ThemeContextType {
   theme: Theme;
   setTheme: (theme: Theme) => void;
+  wallpaper: Wallpaper;
+  setWallpaper: (wallpaper: Wallpaper) => void;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -13,6 +16,11 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [theme, setTheme] = useState<Theme>(() => {
     const saved = localStorage.getItem('ampos-theme');
     return (saved as Theme) || 'default';
+  });
+
+  const [wallpaper, setWallpaper] = useState<Wallpaper>(() => {
+    const saved = localStorage.getItem('ampos-wallpaper');
+    return (saved as Wallpaper) || 'none';
   });
 
   useEffect(() => {
@@ -27,8 +35,12 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }
   }, [theme]);
 
+  useEffect(() => {
+    localStorage.setItem('ampos-wallpaper', wallpaper);
+  }, [wallpaper]);
+
   return (
-    <ThemeContext.Provider value={{ theme, setTheme }}>
+    <ThemeContext.Provider value={{ theme, setTheme, wallpaper, setWallpaper }}>
       {children}
     </ThemeContext.Provider>
   );

@@ -19,8 +19,9 @@ import {
   Webhook,
   Copy,
   Play,
-  Sparkles,
-  Moon
+  Moon,
+  Droplets,
+  ImageIcon
 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
@@ -61,7 +62,7 @@ interface UpdateInfo {
 const WEBHOOK_URL = 'https://hjsugraqchavtzmomfki.supabase.co/functions/v1/github-webhook';
 
 const Settings: React.FC = () => {
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme, wallpaper, setWallpaper } = useTheme();
   const [selectedCategory, setSelectedCategory] = useState('account');
   const [settings, setSettings] = useState({
     darkMode: true,
@@ -313,28 +314,164 @@ const Settings: React.FC = () => {
                   )}
                 </button>
 
-                {/* Liquid Glass Theme */}
+                {/* iOS 26 Liquid Glass Theme */}
                 <button
                   onClick={() => setTheme('liquid-glass')}
                   className={`relative p-4 rounded-xl border-2 transition-all ${
                     theme === 'liquid-glass'
+                      ? 'border-cyan-400 bg-cyan-500/10'
+                      : 'border-border hover:border-cyan-400/50'
+                  }`}
+                >
+                  <div className="w-full h-24 rounded-lg bg-gradient-to-br from-cyan-900/60 via-teal-900/40 to-emerald-900/50 mb-3 flex items-center justify-center overflow-hidden relative">
+                    <div className="absolute inset-0 bg-gradient-to-br from-cyan-400/15 to-teal-400/15" />
+                    <div className="w-3/4 h-16 rounded bg-gradient-to-br from-cyan-400/25 to-teal-400/20 border border-cyan-400/35 backdrop-blur" />
+                    <div className="absolute top-2 left-2 w-10 h-10 rounded-full bg-cyan-400/25 blur-xl animate-pulse" />
+                    <div className="absolute bottom-2 right-2 w-8 h-8 rounded-full bg-teal-400/25 blur-lg animate-pulse" style={{ animationDelay: '1s' }} />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Droplets className="w-4 h-4 text-cyan-400" />
+                    <span className="text-sm font-medium text-foreground">Liquid Glass</span>
+                  </div>
+                  {theme === 'liquid-glass' && (
+                    <div className="absolute top-2 right-2 w-5 h-5 bg-gradient-to-r from-cyan-400 to-teal-400 rounded-full flex items-center justify-center">
+                      <Check className="w-3 h-3 text-white" />
+                    </div>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Animated Wallpaper Selection */}
+            <div className="glass p-4 space-y-4">
+              <div className="flex items-center gap-2 mb-2">
+                <ImageIcon className="w-5 h-5 text-primary" />
+                <h4 className="font-medium text-foreground">Animated Wallpaper</h4>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                {/* None */}
+                <button
+                  onClick={() => setWallpaper('none')}
+                  className={`relative p-2 rounded-xl border-2 transition-all ${
+                    wallpaper === 'none'
                       ? 'border-primary bg-primary/10'
                       : 'border-border hover:border-primary/50'
                   }`}
                 >
-                  <div className="w-full h-24 rounded-lg bg-gradient-to-br from-purple-900/50 via-blue-900/30 to-cyan-900/50 mb-3 flex items-center justify-center overflow-hidden relative">
-                    <div className="absolute inset-0 bg-gradient-to-br from-purple-500/20 to-cyan-500/20" />
-                    <div className="w-3/4 h-16 rounded bg-gradient-to-br from-purple-500/30 to-cyan-500/20 border border-purple-400/40 backdrop-blur" />
-                    <div className="absolute top-2 left-2 w-8 h-8 rounded-full bg-purple-500/30 blur-xl" />
-                    <div className="absolute bottom-2 right-2 w-6 h-6 rounded-full bg-cyan-500/30 blur-lg" />
+                  <div className="w-full h-16 rounded-lg bg-gradient-to-br from-background to-card mb-2" />
+                  <span className="text-xs text-foreground">None</span>
+                  {wallpaper === 'none' && (
+                    <div className="absolute top-1 right-1 w-4 h-4 bg-primary rounded-full flex items-center justify-center">
+                      <Check className="w-2 h-2 text-primary-foreground" />
+                    </div>
+                  )}
+                </button>
+
+                {/* Aurora */}
+                <button
+                  onClick={() => setWallpaper('aurora')}
+                  className={`relative p-2 rounded-xl border-2 transition-all ${
+                    wallpaper === 'aurora'
+                      ? 'border-primary bg-primary/10'
+                      : 'border-border hover:border-primary/50'
+                  }`}
+                >
+                  <div className="w-full h-16 rounded-lg bg-gradient-to-br from-purple-900/50 via-background to-cyan-900/40 mb-2 overflow-hidden relative">
+                    <div className="absolute inset-0 bg-gradient-to-tr from-pink-500/20 via-transparent to-green-500/20" />
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-purple-400" />
-                    <span className="text-sm font-medium text-foreground">Liquid Glass</span>
+                  <span className="text-xs text-foreground">Aurora</span>
+                  {wallpaper === 'aurora' && (
+                    <div className="absolute top-1 right-1 w-4 h-4 bg-primary rounded-full flex items-center justify-center">
+                      <Check className="w-2 h-2 text-primary-foreground" />
+                    </div>
+                  )}
+                </button>
+
+                {/* Waves */}
+                <button
+                  onClick={() => setWallpaper('waves')}
+                  className={`relative p-2 rounded-xl border-2 transition-all ${
+                    wallpaper === 'waves'
+                      ? 'border-primary bg-primary/10'
+                      : 'border-border hover:border-primary/50'
+                  }`}
+                >
+                  <div className="w-full h-16 rounded-lg bg-gradient-to-b from-blue-900/40 via-background to-cyan-900/30 mb-2 overflow-hidden relative">
+                    <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-blue-500/20 to-transparent rounded-b" />
                   </div>
-                  {theme === 'liquid-glass' && (
-                    <div className="absolute top-2 right-2 w-5 h-5 bg-gradient-to-r from-purple-500 to-cyan-500 rounded-full flex items-center justify-center">
-                      <Check className="w-3 h-3 text-white" />
+                  <span className="text-xs text-foreground">Waves</span>
+                  {wallpaper === 'waves' && (
+                    <div className="absolute top-1 right-1 w-4 h-4 bg-primary rounded-full flex items-center justify-center">
+                      <Check className="w-2 h-2 text-primary-foreground" />
+                    </div>
+                  )}
+                </button>
+
+                {/* Particles */}
+                <button
+                  onClick={() => setWallpaper('particles')}
+                  className={`relative p-2 rounded-xl border-2 transition-all ${
+                    wallpaper === 'particles'
+                      ? 'border-primary bg-primary/10'
+                      : 'border-border hover:border-primary/50'
+                  }`}
+                >
+                  <div className="w-full h-16 rounded-lg bg-background mb-2 overflow-hidden relative">
+                    {[...Array(8)].map((_, i) => (
+                      <div
+                        key={i}
+                        className="absolute w-1 h-1 bg-primary/60 rounded-full"
+                        style={{
+                          left: `${15 + (i * 10)}%`,
+                          top: `${20 + (i % 3) * 25}%`,
+                        }}
+                      />
+                    ))}
+                  </div>
+                  <span className="text-xs text-foreground">Particles</span>
+                  {wallpaper === 'particles' && (
+                    <div className="absolute top-1 right-1 w-4 h-4 bg-primary rounded-full flex items-center justify-center">
+                      <Check className="w-2 h-2 text-primary-foreground" />
+                    </div>
+                  )}
+                </button>
+
+                {/* Gradient Flow */}
+                <button
+                  onClick={() => setWallpaper('gradient')}
+                  className={`relative p-2 rounded-xl border-2 transition-all ${
+                    wallpaper === 'gradient'
+                      ? 'border-primary bg-primary/10'
+                      : 'border-border hover:border-primary/50'
+                  }`}
+                >
+                  <div className="w-full h-16 rounded-lg bg-gradient-to-r from-indigo-900/40 via-purple-900/30 to-pink-900/40 mb-2" />
+                  <span className="text-xs text-foreground">Gradient</span>
+                  {wallpaper === 'gradient' && (
+                    <div className="absolute top-1 right-1 w-4 h-4 bg-primary rounded-full flex items-center justify-center">
+                      <Check className="w-2 h-2 text-primary-foreground" />
+                    </div>
+                  )}
+                </button>
+
+                {/* Nebula */}
+                <button
+                  onClick={() => setWallpaper('nebula')}
+                  className={`relative p-2 rounded-xl border-2 transition-all ${
+                    wallpaper === 'nebula'
+                      ? 'border-primary bg-primary/10'
+                      : 'border-border hover:border-primary/50'
+                  }`}
+                >
+                  <div className="w-full h-16 rounded-lg bg-background mb-2 overflow-hidden relative">
+                    <div className="absolute top-1 left-1 w-8 h-6 bg-purple-500/30 rounded-full blur-md" />
+                    <div className="absolute bottom-1 right-2 w-6 h-6 bg-blue-500/25 rounded-full blur-md" />
+                    <div className="absolute top-3 right-1 w-5 h-4 bg-pink-500/20 rounded-full blur-sm" />
+                  </div>
+                  <span className="text-xs text-foreground">Nebula</span>
+                  {wallpaper === 'nebula' && (
+                    <div className="absolute top-1 right-1 w-4 h-4 bg-primary rounded-full flex items-center justify-center">
+                      <Check className="w-2 h-2 text-primary-foreground" />
                     </div>
                   )}
                 </button>
