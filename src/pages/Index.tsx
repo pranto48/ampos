@@ -1,13 +1,23 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import React from 'react';
+import { OSProvider, useOS } from '@/contexts/OSContext';
+import LoginScreen from '@/components/os/LoginScreen';
+import Desktop from '@/components/os/Desktop';
 
-const Index = () => {
+const OSContent: React.FC = () => {
+  const { isLocked } = useOS();
+
+  if (isLocked) {
+    return <LoginScreen />;
+  }
+
+  return <Desktop />;
+};
+
+const Index: React.FC = () => {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="mb-4 text-4xl font-bold">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
-      </div>
-    </div>
+    <OSProvider>
+      <OSContent />
+    </OSProvider>
   );
 };
 
