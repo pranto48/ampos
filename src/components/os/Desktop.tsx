@@ -8,7 +8,50 @@ import StartMenu from './StartMenu';
 
 const Desktop: React.FC = () => {
   const { closeStartMenu, isStartMenuOpen } = useOS();
-  const { theme } = useTheme();
+  const { theme, wallpaper } = useTheme();
+
+  const renderWallpaper = () => {
+    switch (wallpaper) {
+      case 'aurora':
+        return <div className="wallpaper-aurora" />;
+      case 'waves':
+        return (
+          <div className="wallpaper-waves">
+            <div className="wave wave-1" />
+            <div className="wave wave-2" />
+            <div className="wave wave-3" />
+          </div>
+        );
+      case 'particles':
+        return (
+          <div className="wallpaper-particles">
+            {Array.from({ length: 30 }).map((_, i) => (
+              <div
+                key={i}
+                className="particle"
+                style={{
+                  left: `${Math.random() * 100}%`,
+                  animationDelay: `${Math.random() * 15}s`,
+                  animationDuration: `${12 + Math.random() * 8}s`,
+                }}
+              />
+            ))}
+          </div>
+        );
+      case 'gradient':
+        return <div className="wallpaper-gradient-flow" />;
+      case 'nebula':
+        return (
+          <div className="wallpaper-nebula">
+            <div className="nebula-cloud nebula-1" />
+            <div className="nebula-cloud nebula-2" />
+            <div className="nebula-cloud nebula-3" />
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
 
   return (
     <div className="fixed inset-0 bg-desktop overflow-hidden select-none">
@@ -16,13 +59,17 @@ const Desktop: React.FC = () => {
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-background via-desktop to-background" />
         
+        {/* Animated Wallpaper */}
+        {renderWallpaper()}
+        
         {theme === 'liquid-glass' ? (
-          /* Liquid Glass Theme Background */
+          /* iOS 26 Water Glass Theme Background */
           <>
-            <div className="liquid-orb liquid-orb-1" />
-            <div className="liquid-orb liquid-orb-2" />
-            <div className="liquid-orb liquid-orb-3" />
-            <div className="absolute inset-0 bg-gradient-to-br from-purple-900/10 via-transparent to-cyan-900/10" />
+            <div className="water-orb water-orb-1" />
+            <div className="water-orb water-orb-2" />
+            <div className="water-orb water-orb-3" />
+            <div className="water-orb water-orb-4" />
+            <div className="absolute inset-0 bg-gradient-to-br from-cyan-900/10 via-transparent to-teal-900/10" />
           </>
         ) : (
           /* Default Theme Background */

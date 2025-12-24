@@ -71,65 +71,65 @@
     --glass-opacity: 0.8;
   }
 
-  /* Liquid Glass Theme */
+  /* iOS 26 Liquid Glass Theme - Water Color */
   .theme-liquid-glass {
-    --background: 220 30% 8%;
+    --background: 200 40% 6%;
     --foreground: 0 0% 100%;
 
-    --card: 220 40% 12%;
+    --card: 200 45% 10%;
     --card-foreground: 0 0% 100%;
 
-    --popover: 220 40% 14%;
+    --popover: 200 45% 12%;
     --popover-foreground: 0 0% 100%;
 
-    --primary: 280 100% 70%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 190 95% 55%;
+    --primary-foreground: 200 40% 6%;
 
-    --secondary: 220 30% 18%;
+    --secondary: 200 35% 16%;
     --secondary-foreground: 0 0% 100%;
 
-    --muted: 220 20% 20%;
-    --muted-foreground: 220 10% 60%;
+    --muted: 200 25% 18%;
+    --muted-foreground: 200 15% 55%;
 
-    --accent: 200 100% 60%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 175 85% 50%;
+    --accent-foreground: 200 40% 6%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 220 30% 25%;
-    --input: 220 30% 18%;
-    --ring: 280 100% 70%;
+    --border: 200 35% 22%;
+    --input: 200 35% 16%;
+    --ring: 190 95% 55%;
 
-    /* Custom tokens for liquid glass */
-    --glass: 220 40% 15%;
-    --glass-border: 280 50% 40%;
-    --taskbar: 220 40% 10%;
-    --window-header: 220 40% 12%;
-    --desktop: 220 30% 6%;
+    /* iOS 26 Water Glass tokens */
+    --glass: 200 45% 14%;
+    --glass-border: 190 60% 35%;
+    --taskbar: 200 45% 8%;
+    --window-header: 200 45% 10%;
+    --desktop: 200 40% 4%;
 
-    /* Liquid gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(280 100% 70%), hsl(200 100% 60%));
-    --gradient-accent: linear-gradient(135deg, hsl(320 100% 70%), hsl(280 100% 70%), hsl(200 100% 60%));
-    --gradient-glass: linear-gradient(135deg, hsl(280 50% 30% / 0.3), hsl(200 50% 30% / 0.2));
+    /* Water gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(190 95% 55%), hsl(175 85% 50%));
+    --gradient-accent: linear-gradient(135deg, hsl(200 90% 60%), hsl(175 85% 50%), hsl(160 80% 55%));
+    --gradient-glass: linear-gradient(135deg, hsl(190 50% 30% / 0.3), hsl(175 50% 25% / 0.2));
 
-    /* Liquid shadows */
-    --shadow-window: 0 25px 60px -12px rgba(147, 51, 234, 0.4), 0 0 80px rgba(59, 130, 246, 0.2);
-    --shadow-glow: 0 0 60px hsl(280 100% 70% / 0.4), 0 0 100px hsl(200 100% 60% / 0.2);
-    --shadow-taskbar: 0 -10px 60px rgba(147, 51, 234, 0.3);
+    /* Water shadows */
+    --shadow-window: 0 25px 60px -12px rgba(0, 200, 200, 0.25), 0 0 80px rgba(0, 180, 180, 0.15);
+    --shadow-glow: 0 0 60px hsl(190 95% 55% / 0.35), 0 0 100px hsl(175 85% 50% / 0.2);
+    --shadow-taskbar: 0 -10px 60px rgba(0, 180, 180, 0.2);
 
-    --sidebar-background: 220 40% 10%;
+    --sidebar-background: 200 45% 8%;
     --sidebar-foreground: 0 0% 100%;
-    --sidebar-primary: 280 100% 70%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 30% 18%;
+    --sidebar-primary: 190 95% 55%;
+    --sidebar-primary-foreground: 200 40% 6%;
+    --sidebar-accent: 200 35% 16%;
     --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 280 50% 35%;
-    --sidebar-ring: 280 100% 70%;
+    --sidebar-border: 190 50% 30%;
+    --sidebar-ring: 190 95% 55%;
 
     /* Enhanced glass effects */
-    --glass-blur: 24px;
-    --glass-opacity: 0.6;
+    --glass-blur: 28px;
+    --glass-opacity: 0.5;
   }
 }
 
@@ -179,133 +179,282 @@
     @apply bg-taskbar/90 backdrop-blur-xl border-t border-border;
   }
 
-  /* Liquid Glass specific styles */
+  /* iOS 26 Liquid Glass styles */
   .theme-liquid-glass .glass {
     background: linear-gradient(
       135deg,
-      hsl(280 50% 30% / 0.25),
-      hsl(220 40% 20% / 0.4),
-      hsl(200 50% 30% / 0.25)
+      hsl(190 50% 25% / 0.35),
+      hsl(200 45% 18% / 0.45),
+      hsl(175 50% 25% / 0.3)
     );
-    backdrop-filter: blur(24px) saturate(180%);
-    border: 1px solid hsl(280 50% 50% / 0.3);
+    backdrop-filter: blur(28px) saturate(200%);
+    border: 1px solid hsl(190 60% 45% / 0.25);
     box-shadow: 
-      inset 0 1px 1px hsl(0 0% 100% / 0.1),
-      inset 0 -1px 1px hsl(0 0% 0% / 0.1),
-      0 8px 32px hsl(280 100% 50% / 0.15);
+      inset 0 1px 2px hsl(0 0% 100% / 0.12),
+      inset 0 -1px 1px hsl(0 0% 0% / 0.08),
+      0 8px 32px hsl(190 80% 40% / 0.12);
   }
 
   .theme-liquid-glass .glass-strong {
     background: linear-gradient(
       135deg,
-      hsl(280 50% 25% / 0.5),
-      hsl(220 40% 15% / 0.6),
-      hsl(200 50% 25% / 0.5)
+      hsl(190 50% 22% / 0.55),
+      hsl(200 45% 15% / 0.65),
+      hsl(175 50% 22% / 0.5)
     );
-    backdrop-filter: blur(32px) saturate(200%);
-    border: 1px solid hsl(280 50% 60% / 0.4);
+    backdrop-filter: blur(36px) saturate(220%);
+    border: 1px solid hsl(190 65% 50% / 0.35);
     box-shadow: 
-      inset 0 2px 2px hsl(0 0% 100% / 0.15),
-      inset 0 -2px 2px hsl(0 0% 0% / 0.15),
-      0 12px 48px hsl(280 100% 50% / 0.2);
+      inset 0 2px 3px hsl(0 0% 100% / 0.15),
+      inset 0 -2px 2px hsl(0 0% 0% / 0.1),
+      0 12px 48px hsl(190 80% 40% / 0.18);
   }
 
   .theme-liquid-glass .window-glass {
     background: linear-gradient(
       180deg,
-      hsl(280 40% 20% / 0.6),
-      hsl(220 40% 12% / 0.8)
+      hsl(190 45% 18% / 0.65),
+      hsl(200 45% 12% / 0.8)
     );
-    backdrop-filter: blur(32px) saturate(180%);
-    border: 1px solid hsl(280 50% 50% / 0.35);
+    backdrop-filter: blur(36px) saturate(200%);
+    border: 1px solid hsl(190 60% 45% / 0.3);
     box-shadow: 
-      0 25px 60px -12px rgba(147, 51, 234, 0.35),
-      0 0 80px rgba(59, 130, 246, 0.15),
-      inset 0 1px 2px hsl(0 0% 100% / 0.1);
+      0 25px 60px -12px rgba(0, 180, 180, 0.25),
+      0 0 80px rgba(0, 200, 200, 0.1),
+      inset 0 1px 3px hsl(0 0% 100% / 0.12);
   }
 
   .theme-liquid-glass .taskbar-glass {
     background: linear-gradient(
       180deg,
-      hsl(280 40% 15% / 0.7),
-      hsl(220 40% 8% / 0.85)
+      hsl(190 45% 14% / 0.75),
+      hsl(200 45% 8% / 0.88)
     );
-    backdrop-filter: blur(32px) saturate(200%);
-    border-top: 1px solid hsl(280 50% 50% / 0.3);
+    backdrop-filter: blur(36px) saturate(220%);
+    border-top: 1px solid hsl(190 60% 45% / 0.25);
     box-shadow: 
-      0 -10px 40px rgba(147, 51, 234, 0.25),
-      inset 0 1px 1px hsl(0 0% 100% / 0.08);
+      0 -10px 40px rgba(0, 180, 180, 0.15),
+      inset 0 1px 2px hsl(0 0% 100% / 0.08);
   }
 
-  /* Liquid glass button effects */
+  /* Water glass button effects */
   .theme-liquid-glass .btn-glass {
     background: linear-gradient(
       135deg,
-      hsl(280 50% 40% / 0.3),
-      hsl(200 50% 40% / 0.2)
+      hsl(190 50% 35% / 0.35),
+      hsl(175 50% 35% / 0.25)
     );
-    backdrop-filter: blur(16px);
-    border: 1px solid hsl(280 50% 60% / 0.3);
+    backdrop-filter: blur(20px);
+    border: 1px solid hsl(190 60% 50% / 0.25);
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .theme-liquid-glass .btn-glass:hover {
     background: linear-gradient(
       135deg,
-      hsl(280 50% 50% / 0.4),
-      hsl(200 50% 50% / 0.3)
+      hsl(190 50% 45% / 0.45),
+      hsl(175 50% 45% / 0.35)
     );
-    box-shadow: 0 0 30px hsl(280 100% 70% / 0.3);
-    border-color: hsl(280 50% 70% / 0.5);
+    box-shadow: 0 0 35px hsl(190 90% 50% / 0.3);
+    border-color: hsl(190 60% 60% / 0.4);
   }
 
-  /* Liquid glass glow effects */
+  /* Water glow effects */
   .theme-liquid-glass .glow-primary {
     box-shadow: 
-      0 0 40px hsl(280 100% 70% / 0.4),
-      0 0 80px hsl(200 100% 60% / 0.2);
+      0 0 45px hsl(190 95% 55% / 0.35),
+      0 0 90px hsl(175 85% 50% / 0.2);
   }
 
   .theme-liquid-glass .gradient-text {
-    background: linear-gradient(135deg, hsl(280 100% 70%), hsl(200 100% 60%));
+    background: linear-gradient(135deg, hsl(190 95% 60%), hsl(175 85% 55%));
     -webkit-background-clip: text;
     background-clip: text;
   }
 
-  /* Liquid orb animation for desktop */
-  .liquid-orb {
+  /* Water orb animations */
+  .water-orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(100px);
+    opacity: 0.5;
+    animation: water-flow 25s ease-in-out infinite;
+  }
+
+  .water-orb-1 {
+    width: 500px;
+    height: 500px;
+    background: radial-gradient(circle, hsl(190 90% 50% / 0.5), transparent 70%);
+    top: 5%;
+    left: 5%;
+    animation-delay: 0s;
+  }
+
+  .water-orb-2 {
+    width: 400px;
+    height: 400px;
+    background: radial-gradient(circle, hsl(175 85% 45% / 0.45), transparent 70%);
+    top: 55%;
+    right: 10%;
+    animation-delay: -8s;
+  }
+
+  .water-orb-3 {
+    width: 450px;
+    height: 450px;
+    background: radial-gradient(circle, hsl(200 85% 55% / 0.4), transparent 70%);
+    bottom: 15%;
+    left: 25%;
+    animation-delay: -16s;
+  }
+
+  .water-orb-4 {
+    width: 350px;
+    height: 350px;
+    background: radial-gradient(circle, hsl(165 80% 50% / 0.35), transparent 70%);
+    top: 35%;
+    left: 60%;
+    animation-delay: -12s;
+  }
+
+  /* Animated Wallpaper Styles */
+  .wallpaper-aurora {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+  }
+
+  .wallpaper-aurora::before,
+  .wallpaper-aurora::after {
+    content: '';
+    position: absolute;
+    width: 200%;
+    height: 200%;
+    animation: aurora-shift 20s ease-in-out infinite;
+  }
+
+  .wallpaper-aurora::before {
+    background: 
+      radial-gradient(ellipse 80% 50% at 20% 40%, hsl(280 70% 50% / 0.3), transparent),
+      radial-gradient(ellipse 60% 40% at 80% 60%, hsl(200 80% 50% / 0.25), transparent);
+    top: -50%;
+    left: -50%;
+  }
+
+  .wallpaper-aurora::after {
+    background: 
+      radial-gradient(ellipse 70% 45% at 60% 30%, hsl(160 70% 45% / 0.25), transparent),
+      radial-gradient(ellipse 50% 35% at 30% 70%, hsl(320 70% 50% / 0.2), transparent);
+    bottom: -50%;
+    right: -50%;
+    animation-delay: -10s;
+  }
+
+  .wallpaper-waves {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+  }
+
+  .wave {
+    position: absolute;
+    width: 200%;
+    height: 200%;
+    opacity: 0.4;
+    border-radius: 40%;
+    animation: wave-rotate 25s linear infinite;
+  }
+
+  .wave-1 {
+    background: linear-gradient(135deg, hsl(200 80% 50% / 0.15), transparent 60%);
+    top: -80%;
+    left: -50%;
+    animation-duration: 25s;
+  }
+
+  .wave-2 {
+    background: linear-gradient(225deg, hsl(180 75% 45% / 0.12), transparent 60%);
+    top: -60%;
+    left: -30%;
+    animation-duration: 30s;
+    animation-direction: reverse;
+  }
+
+  .wave-3 {
+    background: linear-gradient(315deg, hsl(220 70% 55% / 0.1), transparent 60%);
+    top: -70%;
+    left: -40%;
+    animation-duration: 35s;
+  }
+
+  .wallpaper-particles {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+  }
+
+  .particle {
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    background: hsl(200 90% 70% / 0.6);
+    border-radius: 50%;
+    animation: particle-float 15s ease-in-out infinite;
+  }
+
+  .wallpaper-gradient-flow {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      135deg,
+      hsl(220 50% 8%),
+      hsl(200 40% 10%),
+      hsl(180 35% 8%),
+      hsl(160 40% 10%),
+      hsl(220 50% 8%)
+    );
+    background-size: 400% 400%;
+    animation: gradient-flow 30s ease infinite;
+  }
+
+  .wallpaper-nebula {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+  }
+
+  .nebula-cloud {
     position: absolute;
     border-radius: 50%;
     filter: blur(80px);
-    opacity: 0.4;
-    animation: float-orb 20s ease-in-out infinite;
+    animation: nebula-pulse 12s ease-in-out infinite;
   }
 
-  .liquid-orb-1 {
-    width: 400px;
+  .nebula-1 {
+    width: 600px;
     height: 400px;
-    background: radial-gradient(circle, hsl(280 100% 60% / 0.6), transparent);
+    background: radial-gradient(ellipse, hsl(280 60% 40% / 0.4), transparent 70%);
     top: 10%;
     left: 10%;
     animation-delay: 0s;
   }
 
-  .liquid-orb-2 {
-    width: 300px;
-    height: 300px;
-    background: radial-gradient(circle, hsl(200 100% 60% / 0.5), transparent);
-    top: 60%;
+  .nebula-2 {
+    width: 500px;
+    height: 500px;
+    background: radial-gradient(circle, hsl(200 70% 45% / 0.35), transparent 60%);
+    bottom: 20%;
     right: 15%;
-    animation-delay: -7s;
+    animation-delay: -4s;
   }
 
-  .liquid-orb-3 {
-    width: 350px;
-    height: 350px;
-    background: radial-gradient(circle, hsl(320 100% 60% / 0.4), transparent);
-    bottom: 20%;
-    left: 30%;
-    animation-delay: -14s;
+  .nebula-3 {
+    width: 400px;
+    height: 300px;
+    background: radial-gradient(ellipse, hsl(320 55% 45% / 0.3), transparent 65%);
+    top: 50%;
+    left: 40%;
+    animation-delay: -8s;
   }
 
   .icon-hover {
@@ -413,18 +562,79 @@
   }
 }
 
-@keyframes float-orb {
+@keyframes water-flow {
   0%, 100% {
-    transform: translate(0, 0) scale(1);
+    transform: translate(0, 0) scale(1) rotate(0deg);
   }
   25% {
-    transform: translate(30px, -30px) scale(1.1);
+    transform: translate(40px, -40px) scale(1.15) rotate(5deg);
   }
   50% {
-    transform: translate(-20px, 20px) scale(0.95);
+    transform: translate(-30px, 30px) scale(0.9) rotate(-5deg);
   }
   75% {
-    transform: translate(20px, 10px) scale(1.05);
+    transform: translate(25px, 15px) scale(1.1) rotate(3deg);
+  }
+}
+
+@keyframes aurora-shift {
+  0%, 100% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  25% {
+    transform: translate(-5%, 5%) rotate(2deg);
+  }
+  50% {
+    transform: translate(5%, -5%) rotate(-2deg);
+  }
+  75% {
+    transform: translate(-3%, -3%) rotate(1deg);
+  }
+}
+
+@keyframes wave-rotate {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes particle-float {
+  0%, 100% {
+    transform: translateY(100vh) translateX(0);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-100px) translateX(50px);
+    opacity: 0;
+  }
+}
+
+@keyframes gradient-flow {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes nebula-pulse {
+  0%, 100% {
+    transform: scale(1) translate(0, 0);
+    opacity: 0.4;
+  }
+  50% {
+    transform: scale(1.2) translate(20px, -20px);
+    opacity: 0.6;
   }
 }
 
