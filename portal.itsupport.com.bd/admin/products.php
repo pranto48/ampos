@@ -77,6 +77,7 @@ admin_header("Manage Products");
             <label for="category" class="block text-gray-300 text-sm font-bold mb-2">Category:</label>
             <select id="category" name="category" class="form-admin-input" required>
                 <option value="AMPNM">AMPNM License</option>
+                <option value="AMPOS">AMPOS License</option>
                 <option value="Other">Other Application License</option>
             </select>
         </div>
@@ -162,6 +163,7 @@ admin_header("Manage Products");
                 <label for="edit_category" class="block text-gray-300 text-sm font-bold mb-2">Category:</label>
                 <select id="edit_category" name="category" class="form-admin-input" required>
                     <option value="AMPNM">AMPNM License</option>
+                    <option value="AMPOS">AMPOS License</option>
                     <option value="Other">Other Application License</option>
                 </select>
             </div>
