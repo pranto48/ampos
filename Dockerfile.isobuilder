@@ -1,0 +1,29 @@
+#
+# Copyright (c) IT Support BD https://itsupport.com.bd. All rights reserved.
+# This file is part of AMPOS.
+#
+# This program is not free software: you can not redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License...
+# (Commercial licenses available at https://ampos.itsupport.com.bd/pricing)
+#
+
+FROM ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y \
+    live-build \
+    debootstrap \
+    squashfs-tools \
+    xorriso \
+    mtools \
+    curl \
+    git \
+    nodejs \
+    npm \
+    sudo \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /workspace
+
+CMD ["/bin/bash", "-c", "chmod +x build-iso.sh && ./build-iso.sh"]

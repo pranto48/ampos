@@ -1,0 +1,43 @@
+#
+# Copyright (c) IT Support BD https://itsupport.com.bd. All rights reserved.
+# This file is part of AMPOS.
+#
+# This program is not free software: you can not redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License...
+# (Commercial licenses available at https://ampos.itsupport.com.bd/pricing)
+#
+
+name: Build Bare-Metal ISO Image
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-iso:
+    name: Build AmPOS Live ISO
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Make build-iso.sh executable
+        run: chmod +x build-iso.sh
+
+      - name: Build Bare-Metal ISO
+        run: sudo ./build-iso.sh
+
+      - name: Upload ISO Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ampos-server-amd64-iso
+          path: ampos-server-amd64.iso
+          retention-days: 14
