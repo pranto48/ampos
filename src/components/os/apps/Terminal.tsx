@@ -17,7 +17,7 @@ import {
 } from '@/services/amposUpdateService';
 import {
   getSetupConfig,
-  resetSetupConfig,
+  clearSetupConfig,
   getEffectiveNetwork,
   subnetToCidr,
   AMPOS_VERSION,
@@ -305,26 +305,14 @@ const SYNC_COMMANDS: Record<string, SyncCmdFn> = {
 
   // ── Factory reset ─────────────────────────────────────────────────────────
 
-  'ampos-reset': (_args, { setLines }) => {
-    resetSetupConfig();
-    const confirmLines: TerminalLine[] = [
-      out(''),
-      warn('⚠  Factory reset initiated.'),
-      info('Clearing configuration data...'),
-      info('[  OK  ] Removed network configuration.'),
-      info('[  OK  ] Removed service port configuration.'),
-      info('[  OK  ] Removed update state.'),
-      info('[  OK  ] Removed theme and wallpaper settings.'),
-      out(''),
-      warn('Factory reset complete. System going down...'),
-      out(''),
-    ];
-    // Show messages, then reload after a short pause
+  'ampos-reset': () => {
+    clearSetupConfig();
     setTimeout(() => {
-      setLines(confirmLines);
-      setTimeout(() => window.location.reload(), 2000);
-    }, 100);
-    return [];
+      window.location.reload();
+    }, 3000);
+    return [
+      warn('Factory reset initiated. System going down in 3 seconds...'),
+    ];
   },
 
   systemctl: (args) => {

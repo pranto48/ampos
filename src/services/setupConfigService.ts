@@ -97,11 +97,22 @@ export const DEFAULT_CONFIG: SetupConfig = {
  */
 export function getSetupConfig(): SetupConfig {
   try {
-    const raw = localStorage.getItem(LS_KEY);
+    const raw = localStorage.getItem(LS_KEY) || localStorage.getItem('ampos_config');
     if (!raw) return { ...DEFAULT_CONFIG };
-    const parsed = JSON.parse(raw) as Partial<SetupConfig>;
-    // Merge stored values over defaults so new fields are back-filled.
-    return { ...DEFAULT_CONFIG, ...parsed };
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    const mapped: Partial<SetupConfig> = {
+      ...parsed,
+      networkMode: ((parsed.networkMode || parsed.networkType) as NetworkMode) || DEFAULT_CONFIG.networkMode,
+      ipAddress: (parsed.ipAddress || parsed.staticIp) as string || DEFAULT_CONFIG.ipAddress,
+      subnetMask: (parsed.subnetMask || parsed.staticSubnet) as string || DEFAULT_CONFIG.subnetMask,
+      gateway: (parsed.gateway || parsed.staticGateway) as string || DEFAULT_CONFIG.gateway,
+      adminUsername: (parsed.adminUsername || parsed.username) as string || DEFAULT_CONFIG.adminUsername,
+      adminPassword: (parsed.adminPassword || parsed.password) as string || DEFAULT_CONFIG.adminPassword,
+      sshPort: parsed.sshPort ? Number(parsed.sshPort) : DEFAULT_CONFIG.sshPort,
+      ftpPort: parsed.ftpPort ? Number(parsed.ftpPort) : DEFAULT_CONFIG.ftpPort,
+      webPort: parsed.webPort ? Number(parsed.webPort) : DEFAULT_CONFIG.webPort,
+    };
+    return { ...DEFAULT_CONFIG, ...mapped };
   } catch {
     return { ...DEFAULT_CONFIG };
   }
@@ -116,9 +127,24 @@ export function saveSetupConfig(patch: Partial<Omit<SetupConfig, '_version'>>): 
     const current = getSetupConfig();
     const next: SetupConfig = { ...current, ...patch, _version: SCHEMA_VERSION };
     localStorage.setItem(LS_KEY, JSON.stringify(next));
+    localStorage.setItem('ampos_config', JSON.stringify(next));
   } catch {
     // localStorage may be unavailable in some kiosk environments.
   }
+}
+
+/**
+ * Clears setup configuration and resets configured flag from localStorage.
+ */
+export function clearSetupConfig(): void {
+  try {
+    localStorage.removeItem(AMPOS_CONFIGURED_KEY);
+    localStorage.removeItem(LS_KEY);
+    localStorage.removeItem('ampos_config');
+  } catch {
+    // Best-effort.
+  }
+  resetSetupConfig();
 }
 
 /**
