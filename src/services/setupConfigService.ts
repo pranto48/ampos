@@ -159,6 +159,7 @@ const AMPOS_LS_KEYS = [
   'ampos-theme',
   'ampos-wallpaper',
   'ampos_configured',
+  'ampos_vfs',
 ];
 
 /** localStorage key that signals first-boot setup has been completed. */

@@ -22,6 +22,15 @@ import {
   subnetToCidr,
   AMPOS_VERSION,
 } from '@/services/setupConfigService';
+import {
+  normalizePath,
+  listDirectory,
+  makeDirectory,
+  createFile,
+  readFile,
+  writeFile,
+  getEntry,
+} from '@/services/vfsService';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -31,13 +40,24 @@ interface TerminalLine {
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-// Resolved lazily from localStorage so the Terminal always reflects the
-// latest saved setup config without requiring a page reload.
 
 const cfg = () => getSetupConfig();
 const HOSTNAME = () => cfg().hostname;
 const USERNAME = () => cfg().adminUsername;
-const PROMPT   = () => `${USERNAME()}@${HOSTNAME()}:~$`;
+
+const formatPrompt = (cwd: string) => {
+  const user = USERNAME();
+  const host = HOSTNAME();
+  const home = `/home/${user}`;
+
+  let displayDir = cwd;
+  if (cwd === home) {
+    displayDir = '~';
+  } else if (cwd.startsWith(home + '/')) {
+    displayDir = '~' + cwd.slice(home.length);
+  }
+  return `${user}@${host}:${displayDir}$`;
+};
 
 // ─── Line factories ───────────────────────────────────────────────────────────
 
@@ -46,8 +66,7 @@ const err  = (content: string): TerminalLine => ({ type: 'error',  content });
 const info = (content: string): TerminalLine => ({ type: 'info',   content });
 const warn = (content: string): TerminalLine => ({ type: 'warn',   content });
 
-// ─── Static MOTD (update hint injected dynamically after mount) ───────────────
-// Built at mount time so it captures the current config snapshot.
+// ─── Static MOTD ──────────────────────────────────────────────────────────────
 
 const buildMotd = (): TerminalLine[] => {
   const c = cfg();
@@ -66,11 +85,15 @@ const buildMotd = (): TerminalLine[] => {
 };
 
 // ─── Synchronous command map ──────────────────────────────────────────────────
-// Async commands (check-update, ampos-update) are handled separately below.
 
 type SyncCmdFn = (
   args: string[],
-  ctx: { logout: () => void; setLines: React.Dispatch<React.SetStateAction<TerminalLine[]>> }
+  ctx: {
+    logout: () => void;
+    setLines: React.Dispatch<React.SetStateAction<TerminalLine[]>>;
+    currentDir: string;
+    setCurrentDir: React.Dispatch<React.SetStateAction<string>>;
+  }
 ) => TerminalLine[];
 
 const SYNC_COMMANDS: Record<string, SyncCmdFn> = {
@@ -79,14 +102,18 @@ const SYNC_COMMANDS: Record<string, SyncCmdFn> = {
     info('Available commands:'),
     out('  help                  Show this help message'),
     out('  clear                 Clear the terminal'),
-    out('  echo                  Echo text to stdout'),
+    out('  echo                  Echo text to stdout (supports > and >> redirection)'),
     out('  date                  Print current date/time'),
     out('  whoami                Print current user'),
     out('  hostname              Print system hostname'),
     out('  uptime                Show system uptime'),
     out('  uname                 Print kernel/OS info'),
-    out('  ls                    List directory contents'),
     out('  pwd                   Print working directory'),
+    out('  ls [path]             List directory contents'),
+    out('  cd [path]             Change current working directory'),
+    out('  mkdir <dir>           Create directory'),
+    out('  touch <file>          Create empty file'),
+    out('  cat <file>            Read file contents'),
     out('  env                   List environment variables'),
     out('  ps                    Show running processes'),
     out('  df                    Report disk usage'),
@@ -95,11 +122,10 @@ const SYNC_COMMANDS: Record<string, SyncCmdFn> = {
     out('  ip a                  Alias for ifconfig'),
     out('  netstat -tuln         Show listening ports'),
     out('  ss -tuln              Alias for netstat'),
-    out('  cat /etc/os-release   Show OS release information'),
     out('  neofetch              System info summary'),
     out('  check-update          Check for available OS updates'),
     out('  ampos-update          Download and install latest update'),
-    out('  ampos-reset           Factory reset (clears all config)'),
+    out('  ampos-reset           Factory reset (clears all config & VFS)'),
     out('  reboot                Reboot the session (re-login)'),
     out('  systemctl             Manage system services'),
     out('  logout                Log out of the session'),
@@ -112,7 +138,11 @@ const SYNC_COMMANDS: Record<string, SyncCmdFn> = {
     return [];
   },
 
-  echo: (args) => [out(args.join(' '))],
+  echo: (args) => {
+    const text = args.join(' ').replace(/^["']|["']$/g, '');
+    return [out(text)];
+  },
+
   date: () => [out(new Date().toString())],
   whoami: () => [out(USERNAME())],
   hostname: () => [out(HOSTNAME())],
@@ -131,22 +161,119 @@ const SYNC_COMMANDS: Record<string, SyncCmdFn> = {
       : [out('Linux')];
   },
 
-  pwd: () => [out('/home/admin')],
+  pwd: (_args, { currentDir }) => [out(currentDir)],
 
-  ls: (args) => {
-    const showAll = args.includes('-a') || args.includes('-la') || args.includes('-al');
-    const entries = showAll
-      ? ['.', '..', '.bash_history', '.bashrc', '.profile', 'Documents', 'Downloads', '.ssh', 'logs']
-      : ['Documents', 'Downloads', 'logs'];
-    return [out(entries.join('  '))];
+  cd: (args, { currentDir, setCurrentDir }) => {
+    const user = USERNAME();
+    const target = args[0] ? args[0] : '~';
+    const normalized = normalizePath(target, currentDir, user);
+    const entry = getEntry(normalized);
+
+    if (!entry) {
+      return [err(`bash: cd: ${args[0] || '~'}: No such file or directory`)];
+    }
+    if (entry.type !== 'dir') {
+      return [err(`bash: cd: ${args[0] || '~'}: Not a directory`)];
+    }
+
+    setCurrentDir(normalized);
+    return [];
   },
 
-  env: () => {
+  ls: (args, { currentDir }) => {
+    const user = USERNAME();
+    const flags = args.filter((a) => a.startsWith('-'));
+    const pathArgs = args.filter((a) => !a.startsWith('-'));
+    const target = pathArgs[0] ? pathArgs[0] : currentDir;
+    const normalized = normalizePath(target, currentDir, user);
+    const entry = getEntry(normalized);
+
+    if (!entry) {
+      return [err(`ls: cannot access '${target}': No such file or directory`)];
+    }
+
+    if (entry.type === 'file') {
+      return [out(target)];
+    }
+
+    const showAll = flags.some((f) => f.includes('a'));
+    const items = listDirectory(normalized);
+
+    const displayList: string[] = [];
+    if (showAll) {
+      displayList.push('.  ..');
+    }
+
+    const formattedItems = items.map((item) => (item.isDir ? `${item.name}/` : item.name));
+    if (formattedItems.length > 0) {
+      displayList.push(formattedItems.join('  '));
+    }
+
+    return [out(displayList.filter(Boolean).join('  '))];
+  },
+
+  mkdir: (args, { currentDir }) => {
+    if (!args.length) return [err('mkdir: missing operand')];
+    const user = USERNAME();
+    const errors: TerminalLine[] = [];
+
+    args.forEach((dirName) => {
+      if (dirName.startsWith('-')) return;
+      const normalized = normalizePath(dirName, currentDir, user);
+      if (!makeDirectory(normalized)) {
+        errors.push(err(`mkdir: cannot create directory '${dirName}': File exists`));
+      }
+    });
+
+    return errors;
+  },
+
+  touch: (args, { currentDir }) => {
+    if (!args.length) return [err('touch: missing operand')];
+    const user = USERNAME();
+
+    args.forEach((fileName) => {
+      if (fileName.startsWith('-')) return;
+      const normalized = normalizePath(fileName, currentDir, user);
+      const entry = getEntry(normalized);
+      if (!entry) {
+        createFile(normalized, '');
+      } else if (entry.type === 'file') {
+        writeFile(normalized, entry.content || '');
+      }
+    });
+
+    return [];
+  },
+
+  cat: (args, { currentDir }) => {
+    if (!args.length) return [err('cat: missing operand')];
+    const user = USERNAME();
+    const result: TerminalLine[] = [];
+
+    args.forEach((fileName) => {
+      const normalized = normalizePath(fileName, currentDir, user);
+      const entry = getEntry(normalized);
+      if (!entry) {
+        result.push(err(`cat: ${fileName}: No such file or directory`));
+      } else if (entry.type === 'dir') {
+        result.push(err(`cat: ${fileName}: Is a directory`));
+      } else {
+        const content = readFile(normalized) ?? '';
+        result.push(out(content));
+      }
+    });
+
+    return result;
+  },
+
+  env: (_args, { currentDir }) => {
     const c = cfg();
     return [
       out(`HOME=/home/${c.adminUsername}`),
       out(`USER=${c.adminUsername}`),
       out(`HOSTNAME=${c.hostname}`),
+      out(`PWD=${currentDir}`),
       out('SHELL=/bin/bash'),
       out('TERM=xterm-256color'),
       out('LANG=en_US.UTF-8'),
@@ -198,7 +325,6 @@ const SYNC_COMMANDS: Record<string, SyncCmdFn> = {
   ifconfig: () => {
     const c = cfg();
     const net = getEffectiveNetwork(c);
-    const cidr = subnetToCidr(net.subnet);
     return [
       out(`${c.networkInterface}: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500`),
       out(`        inet ${net.ip}  netmask ${net.subnet}  broadcast ${net.ip.replace(/\.\d+$/, '.255')}`),
@@ -214,7 +340,6 @@ const SYNC_COMMANDS: Record<string, SyncCmdFn> = {
   },
 
   ip: (args) => {
-    // Support: ip a  /  ip addr  /  ip route
     const sub = args[0] ?? 'a';
     const c = cfg();
     const net = getEffectiveNetwork(c);
@@ -227,7 +352,6 @@ const SYNC_COMMANDS: Record<string, SyncCmdFn> = {
       ];
     }
 
-    // ip a / ip addr
     return [
       out('1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN'),
       out('    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00'),
@@ -240,10 +364,8 @@ const SYNC_COMMANDS: Record<string, SyncCmdFn> = {
     ];
   },
 
-  netstat: (args) => {
+  netstat: () => {
     const c = cfg();
-    const net = getEffectiveNetwork(c);
-    const showAll = args.some(a => a.includes('t') || a.includes('u') || a.includes('l'));
     return [
       out('Active Internet connections (only servers)'),
       out('Proto Recv-Q Send-Q Local Address           Foreign Address         State'),
@@ -256,7 +378,7 @@ const SYNC_COMMANDS: Record<string, SyncCmdFn> = {
     ];
   },
 
-  ss: (args) => {
+  ss: () => {
     const c = cfg();
     return [
       out('Netid  State   Recv-Q  Send-Q  Local Address:Port  Peer Address:Port  Process'),
@@ -266,41 +388,6 @@ const SYNC_COMMANDS: Record<string, SyncCmdFn> = {
       out(`tcp    LISTEN  0       128     [::]:${c.sshPort}              [::]:*             users:(("sshd",pid=412,fd=4))`),
       out(''),
     ];
-  },
-
-  cat: (args) => {
-    const path = args[0] ?? '';
-    if (path === '/etc/os-release' || path === '/etc/os_release') {
-      const c = cfg();
-      const net = getEffectiveNetwork(c);
-      return [
-        out('NAME="AmPOS Linux"'),
-        out(`VERSION="${AMPOS_VERSION} (Stable)"`),
-        out(`ID=ampos`),
-        out(`VERSION_ID="${AMPOS_VERSION}"`),
-        out(`PRETTY_NAME="AmPOS Linux ${AMPOS_VERSION} (GNU/Linux 6.6.21-amd64)"`),
-        out(`HOME_URL="https://ampos.itsupport.com.bd"`),
-        out(`SUPPORT_URL="https://portal.itsupport.com.bd"`),
-        out(`BUILD_ID="${shortSha(getInstalledSha())}"`),
-        out(`HOSTNAME="${c.hostname}"`),
-        out(`IP_ADDRESS="${net.ip}"`),
-        out(`NETWORK_MODE="${c.networkMode}"`),
-      ];
-    }
-    if (path === '/etc/hostname') {
-      return [out(cfg().hostname)];
-    }
-    if (path === '/etc/hosts') {
-      const c = cfg();
-      const net = getEffectiveNetwork(c);
-      return [
-        out('127.0.0.1   localhost'),
-        out(`127.0.1.1   ${c.hostname}`),
-        out(`${net.ip}    ${c.hostname} ${c.hostname}.local`),
-        out('::1         localhost ip6-localhost ip6-loopback'),
-      ];
-    }
-    return [err(`cat: ${path}: No such file or directory`)];
   },
 
   // ── Factory reset ─────────────────────────────────────────────────────────
@@ -334,10 +421,8 @@ const SYNC_COMMANDS: Record<string, SyncCmdFn> = {
 
   reboot: (_args, { logout }) => {
     if (window.electronAPI) {
-      // Inside Electron: relaunch the process to load freshly-built dist/ files.
       setTimeout(() => window.electronAPI!.reboot(), 800);
     } else {
-      // Browser / dev fallback: cycle back to the login screen.
       setTimeout(logout, 800);
     }
     return [
@@ -364,12 +449,12 @@ const SYNC_COMMANDS: Record<string, SyncCmdFn> = {
 
 const Terminal: React.FC = () => {
   const { logout } = useOS();
-
+  const initialUser = USERNAME();
+  const [currentDir, setCurrentDir] = useState<string>(`/home/${initialUser}`);
   const [lines, setLines] = useState<TerminalLine[]>(() => buildMotd());
   const [currentInput, setCurrentInput] = useState('');
   const [history, setHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
-  /** When true the input row is locked (async command running). */
   const [busy, setBusy] = useState(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
@@ -388,9 +473,9 @@ const Terminal: React.FC = () => {
   // ── Silent MOTD update check ─────────────────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
-    checkForUpdate().then((info) => {
+    checkForUpdate().then((infoResult) => {
       if (cancelled) return;
-      if (info.updateAvailable) {
+      if (infoResult.updateAvailable) {
         setLines((prev) => [
           ...prev,
           warn("⚡ System update available! Type 'ampos-update' to install."),
@@ -402,7 +487,6 @@ const Terminal: React.FC = () => {
   }, []);
 
   // ── Async command runner ─────────────────────────────────────────────────────
-  /** Appends a single line to the terminal output (used by async flows). */
   const appendLine = useCallback((line: TerminalLine) => {
     setLines((prev) => [...prev, line]);
   }, []);
@@ -478,7 +562,8 @@ const Terminal: React.FC = () => {
 
       const raw = currentInput;
       const trimmed = raw.trim();
-      const echoLine: TerminalLine = { type: 'input', content: `${PROMPT()} ${raw}` };
+      const promptText = formatPrompt(currentDir);
+      const echoLine: TerminalLine = { type: 'input', content: `${promptText} ${raw}` };
 
       if (!trimmed) {
         setLines((prev) => [...prev, echoLine]);
@@ -490,7 +575,21 @@ const Terminal: React.FC = () => {
       setHistoryIndex(-1);
       setCurrentInput('');
 
-      const [cmd, ...args] = trimmed.split(/\s+/);
+      // Check for output redirection (> or >>)
+      let effectiveCmdLine = trimmed;
+      let redirection: { target: string; append: boolean } | null = null;
+
+      if (trimmed.includes('>>')) {
+        const parts = trimmed.split('>>');
+        effectiveCmdLine = parts[0].trim();
+        redirection = { target: parts[1].trim(), append: true };
+      } else if (trimmed.includes('>')) {
+        const parts = trimmed.split('>');
+        effectiveCmdLine = parts[0].trim();
+        redirection = { target: parts[1].trim(), append: false };
+      }
+
+      const [cmd, ...args] = effectiveCmdLine.split(/\s+/);
       const lower = cmd.toLowerCase();
 
       // Async commands
@@ -508,12 +607,29 @@ const Terminal: React.FC = () => {
       // Sync commands
       const handler = SYNC_COMMANDS[lower];
       const result: TerminalLine[] = handler
-        ? handler(args, { logout, setLines })
+        ? handler(args, { logout, setLines, currentDir, setCurrentDir })
         : [err(`bash: ${cmd}: command not found`)];
+
+      // Handle output redirection if specified
+      if (redirection && redirection.target) {
+        const user = USERNAME();
+        const targetPath = normalizePath(redirection.target, currentDir, user);
+        const textContent = result
+          .filter((r) => r.type !== 'error')
+          .map((r) => r.content)
+          .join('\n');
+
+        writeFile(targetPath, textContent + (textContent ? '\n' : ''), redirection.append);
+
+        // Include any error lines if execution failed during redirection
+        const errorLines = result.filter((r) => r.type === 'error');
+        setLines((prev) => [...prev, echoLine, ...errorLines]);
+        return;
+      }
 
       setLines((prev) => [...prev, echoLine, ...result]);
     },
-    [busy, currentInput, logout, runCheckUpdate, runAmposUpdate]
+    [busy, currentInput, currentDir, logout, runCheckUpdate, runAmposUpdate]
   );
 
   // ── Key handler ──────────────────────────────────────────────────────────────
@@ -535,13 +651,12 @@ const Terminal: React.FC = () => {
       } else if (e.key === 'c' && e.ctrlKey) {
         e.preventDefault();
         if (busy) {
-          // ^C while busy just shows the echo — actual abort would need AbortController
-          appendLine({ type: 'input', content: `${PROMPT} ${currentInput}^C` });
+          appendLine({ type: 'input', content: `${formatPrompt(currentDir)} ${currentInput}^C` });
           setCurrentInput('');
         }
       }
     },
-    [history, historyIndex, busy, currentInput, appendLine]
+    [history, historyIndex, busy, currentInput, currentDir, appendLine]
   );
 
   // ─── Color map ───────────────────────────────────────────────────────────────
@@ -588,7 +703,6 @@ const Terminal: React.FC = () => {
           </div>
         ))}
 
-        {/* "Running…" spinner while async command executes */}
         {busy && (
           <div style={{ color: '#6b7280', fontStyle: 'italic' }}>
             working...
@@ -596,14 +710,14 @@ const Terminal: React.FC = () => {
         )}
       </div>
 
-      {/* Input prompt row — hidden while busy */}
+      {/* Input prompt row */}
       {!busy && (
         <form
           onSubmit={handleSubmit}
           style={{ display: 'flex', alignItems: 'center', marginTop: 2 }}
         >
           <span style={{ color: '#4ade80', whiteSpace: 'pre', userSelect: 'none' }}>
-            {PROMPT()}{' '}
+            {formatPrompt(currentDir)}{' '}
           </span>
           <input
             ref={inputRef}
