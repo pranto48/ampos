@@ -31,6 +31,11 @@ import {
   writeFile,
   getEntry,
 } from '@/services/vfsService';
+import {
+  AVAILABLE_PACKAGES,
+  isPackageInstalled,
+  markPackageInstalled,
+} from '@/services/pkgService';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -123,6 +128,11 @@ const SYNC_COMMANDS: Record<string, SyncCmdFn> = {
     out('  netstat -tuln         Show listening ports'),
     out('  ss -tuln              Alias for netstat'),
     out('  neofetch              System info summary'),
+    out('  ping <host>           Send ICMP ECHO_REQUEST to network host'),
+    out('  curl <url>            Transfer data from or to a server'),
+    out('  apt update            Update package lists from repositories'),
+    out('  apt install <pkg>     Install package (nmap, htop, git, cmatrix, sl)'),
+    out('  apt list              List available packages'),
     out('  check-update          Check for available OS updates'),
     out('  ampos-update          Download and install latest update'),
     out('  ampos-reset           Factory reset (clears all config & VFS)'),
@@ -143,14 +153,27 @@ const SYNC_COMMANDS: Record<string, SyncCmdFn> = {
     return [out(text)];
   },
 
-  date: () => [out(new Date().toString())],
+  date: () => {
+    const now = new Date();
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const day = days[now.getDay()];
+    const month = months[now.getMonth()];
+    const dateNum = String(now.getDate()).padStart(2, '0');
+    const timeStr = now.toTimeString().slice(0, 8);
+    const tzMatch = now.toTimeString().match(/([+-]\d{2})/);
+    const tz = tzMatch ? tzMatch[1] : '+00';
+    const year = now.getFullYear();
+    return [out(`${day} ${month} ${dateNum} ${timeStr} ${tz} ${year}`)];
+  },
+
   whoami: () => [out(USERNAME())],
   hostname: () => [out(HOSTNAME())],
 
   uptime: () => {
-    const h = Math.floor(Math.random() * 48) + 1;
-    const m = Math.floor(Math.random() * 60);
-    return [out(` ${new Date().toTimeString().slice(0, 8)} up ${h}:${String(m).padStart(2, '0')},  1 user,  load average: 0.12, 0.08, 0.05`)];
+    const now = new Date();
+    const timeStr = now.toTimeString().slice(0, 8);
+    return [out(` ${timeStr} up 2 days,  4:12,  1 user,  load average: 0.04, 0.02, 0.00`)];
   },
 
   uname: (args) => {
@@ -390,6 +413,104 @@ const SYNC_COMMANDS: Record<string, SyncCmdFn> = {
     ];
   },
 
+  // ── Installed Package Commands ──────────────────────────────────────────────
+
+  nmap: (args) => {
+    if (!isPackageInstalled('nmap')) {
+      return [err("bash: nmap: command not found. Try 'apt install nmap'")];
+    }
+    const target = args[0] || '127.0.0.1';
+    const c = cfg();
+    return [
+      out(`Starting Nmap 7.94 ( https://nmap.org ) at ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`),
+      out(`Nmap scan report for ${target}`),
+      out('Host is up (0.0018s latency).'),
+      out('Not shown: 996 closed tcp ports (reset)'),
+      out('PORT     STATE SERVICE'),
+      out(`22/tcp   open  ssh (${c.sshPort})`),
+      out(`21/tcp   open  ftp (${c.ftpPort})`),
+      out(`80/tcp   open  http (${c.webPort})`),
+      out('443/tcp  open  https'),
+      out(''),
+      out(`Nmap done: 1 IP address (1 host up) scanned in 0.38 seconds`),
+    ];
+  },
+
+  htop: () => {
+    if (!isPackageInstalled('htop')) {
+      return [err("bash: htop: command not found. Try 'apt install htop'")];
+    }
+    const c = cfg();
+    return [
+      out('  1  [||||||||||||||||||||||                       38.2%]   Tasks: 42, 123 thr; 1 running'),
+      out('  2  [||||||||||                                   18.4%]   Load average: 0.12 0.08 0.05'),
+      out('  Mem[||||||||||||||||||||||||||||         1.28G/7.78G]   Uptime: 2 days, 04:12:00'),
+      out('  Swp[                                         0K/2.00G]'),
+      out(''),
+      out('  PID USER      PRI  NI  VIRT   RES   SHR S CPU% MEM%   TIME+  Command'),
+      out('    1 root       20   0 168M 11.2M 8.4M S  0.0  0.1  0:01.42 /sbin/init'),
+      out(`  412 root       20   0 15.4M 7.1M 6.2M S  0.0  0.1  0:00.12 /usr/sbin/sshd -D -p ${c.sshPort}`),
+      out(`  723 www-data   20   0  55M 18.4M  12M S  0.1  0.2  0:04.18 nginx: master process port ${c.webPort}`),
+      out(`  837 ${c.adminUsername}      20   0 10.2M 5.1M 4.2M S  0.0  0.1  0:00.08 bash`),
+      out(`  912 ${c.adminUsername}      20   0 14.1M 4.8M 3.9M R  0.2  0.1  0:00.02 htop`),
+    ];
+  },
+
+  git: (args) => {
+    if (!isPackageInstalled('git')) {
+      return [err("bash: git: command not found. Try 'apt install git'")];
+    }
+    const sub = args[0] ?? '';
+    if (!sub || sub === '--version' || sub === 'version') {
+      return [out('git version 2.39.2')];
+    }
+    if (sub === 'status') {
+      return [
+        out('On branch main'),
+        out("Your branch is up to date with 'origin/main'."),
+        out(''),
+        out('nothing to commit, working tree clean'),
+      ];
+    }
+    if (sub === 'log') {
+      return [
+        out('commit e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6 (HEAD -> main, origin/main)'),
+        out('Author: Admin User <admin@ampos.itsupport.com.bd>'),
+        out(`Date:   ${new Date().toDateString()}`),
+        out(''),
+        out('    feat(os): release AmPOS Linux Server v1.0'),
+      ];
+    }
+    return [out(`git: '${sub}' is not a git command. See 'git --help'.`)];
+  },
+
+  cmatrix: () => {
+    if (!isPackageInstalled('cmatrix')) {
+      return [err("bash: cmatrix: command not found. Try 'apt install cmatrix'")];
+    }
+    return [
+      info(' 0 1 0 1 1 0 1 0 0 1 0 1 0 1 1 0'),
+      info(' 1 0 0 1 0 1 0 1 1 0 1 0 1 0 0 1'),
+      info(' 0 1 1 0 1 0 1 0 0 1 0 1 0 1 1 0'),
+      info(' 1 0 1 0 0 1 0 1 1 0 1 0 1 0 1 0'),
+    ];
+  },
+
+  sl: () => {
+    if (!isPackageInstalled('sl')) {
+      return [err("bash: sl: command not found. Try 'apt install sl'")];
+    }
+    return [
+      out('      ====        ________                _____'),
+      out('  _D _|  |_______/        \\__I_I_____===__|_________'),
+      out('   |(_)---  |   H\\________/ |   |        |  |  |  |'),
+      out('   /     |  |   H  |  |     |   |        |  |  |  |'),
+      out('  |      |  |   H  |__--------------------------------'),
+      out('  |________/____|_____________________________________'),
+      out('  (_______) (_______)   (OOO)   (OOO)       (OOO)'),
+    ];
+  },
+
   // ── Factory reset ─────────────────────────────────────────────────────────
 
   'ampos-reset': () => {
@@ -525,6 +646,86 @@ const Terminal: React.FC = () => {
     setTimeout(() => inputRef.current?.focus(), 30);
   }, [appendLine]);
 
+  const runApt = useCallback(
+    async (subCmd: string, pkgName: string) => {
+      setBusy(true);
+
+      if (subCmd === 'update') {
+        appendLine(info('Hit:1 http://archive.ubuntu.com/ubuntu focal InRelease'));
+        await new Promise((res) => setTimeout(res, 300));
+        appendLine(info('Get:2 http://archive.ubuntu.com/ubuntu focal-updates InRelease [114 kB]'));
+        await new Promise((res) => setTimeout(res, 300));
+        appendLine(info('Get:3 http://security.ubuntu.com/ubuntu focal-security InRelease [114 kB]'));
+        await new Promise((res) => setTimeout(res, 400));
+        appendLine(out('Fetched 228 kB in 1s (210 kB/s)'));
+        appendLine(out('Reading package lists... Done'));
+        appendLine(out('Building dependency tree... Done'));
+        appendLine(out('Reading state information... Done'));
+        appendLine(info('All packages are up to date.'));
+      } else if (subCmd === 'install') {
+        if (!pkgName) {
+          appendLine(err('E: Option install requires at least one package name'));
+        } else {
+          const pkgKey = pkgName.toLowerCase();
+          const pkg = AVAILABLE_PACKAGES[pkgKey];
+
+          if (!pkg) {
+            appendLine(err(`E: Unable to locate package ${pkgName}`));
+            appendLine(out(`Available packages: ${Object.keys(AVAILABLE_PACKAGES).join(', ')}`));
+          } else if (isPackageInstalled(pkgKey)) {
+            appendLine(info(`${pkgName} is already the newest version (${pkg.version}).`));
+            appendLine(out('0 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.'));
+          } else {
+            appendLine(out('Reading package lists... Done'));
+            appendLine(out('Building dependency tree... Done'));
+            appendLine(out('Reading state information... Done'));
+            appendLine(out(`The following NEW packages will be installed:`));
+            appendLine(info(`  ${pkg.name}`));
+            appendLine(out(`0 upgraded, 1 newly installed, 0 to remove and 0 not upgraded.`));
+            appendLine(out(`Need to get ${pkg.size} of archives.`));
+            appendLine(out(`After this operation, ${pkg.size} of additional disk space will be used.`));
+            appendLine(out(''));
+
+            const steps = [
+              '[##........] 20%',
+              '[#####.....] 50%',
+              '[########..] 80%',
+              '[##########] 100%',
+            ];
+
+            for (const stepStr of steps) {
+              await new Promise((res) => setTimeout(res, 350));
+              appendLine(info(stepStr));
+            }
+
+            markPackageInstalled(pkgKey);
+            appendLine(out(`Selecting previously unselected package ${pkg.name}.`));
+            appendLine(out(`(Reading database ... 38412 files and directories currently installed.)`));
+            appendLine(out(`Preparing to unpack .../${pkg.name}_${pkg.version}_amd64.deb ...`));
+            appendLine(out(`Unpacking ${pkg.name} (${pkg.version}) ...`));
+            appendLine(out(`Setting up ${pkg.name} (${pkg.version}) ...`));
+            appendLine(info(`✅ Package ${pkg.name} installed successfully!`));
+            appendLine(out(`Command '${pkg.binary}' is now available.`));
+          }
+        }
+      } else if (subCmd === 'list' || subCmd === 'search') {
+        appendLine(out('Available packages in AmPOS repository:'));
+        Object.values(AVAILABLE_PACKAGES).forEach((p) => {
+          const status = isPackageInstalled(p.name) ? '[installed]' : '[available]';
+          appendLine(out(`  ${p.name.padEnd(10)} ${p.version.padEnd(10)} ${status.padEnd(12)} - ${p.description}`));
+        });
+      } else {
+        appendLine(err(`apt: unknown command '${subCmd}'`));
+        appendLine(out('Usage: apt [update | install <package> | list]'));
+      }
+
+      appendLine(out(''));
+      setBusy(false);
+      setTimeout(() => inputRef.current?.focus(), 30);
+    },
+    [appendLine]
+  );
+
   const runAmposUpdate = useCallback(async () => {
     setBusy(true);
     appendLine(out(''));
@@ -593,6 +794,21 @@ const Terminal: React.FC = () => {
       const lower = cmd.toLowerCase();
 
       // Async commands
+      if (lower === 'apt' || lower === 'apt-get') {
+        setLines((prev) => [...prev, echoLine]);
+        runApt(args[0] || '', args[1] || '');
+        return;
+      }
+      if (lower === 'ping') {
+        setLines((prev) => [...prev, echoLine]);
+        runPing(args[0] || '');
+        return;
+      }
+      if (lower === 'curl') {
+        setLines((prev) => [...prev, echoLine]);
+        runCurl(args[0] || '');
+        return;
+      }
       if (lower === 'check-update') {
         setLines((prev) => [...prev, echoLine]);
         runCheckUpdate();
@@ -629,7 +845,7 @@ const Terminal: React.FC = () => {
 
       setLines((prev) => [...prev, echoLine, ...result]);
     },
-    [busy, currentInput, currentDir, logout, runCheckUpdate, runAmposUpdate]
+    [busy, currentInput, currentDir, logout, runCheckUpdate, runAmposUpdate, runPing, runCurl, runApt]
   );
 
   // ── Key handler ──────────────────────────────────────────────────────────────
