@@ -82,6 +82,14 @@ export function shortSha(sha: string): string {
   return sha.slice(0, 7);
 }
 
+/**
+ * Returns true when the renderer is running inside Electron
+ * (i.e. window.electronAPI was injected by preload.js).
+ */
+export function isElectron(): boolean {
+  return typeof window !== 'undefined' && !!window.electronAPI;
+}
+
 /** Returns the human-readable version label for the current installed build. */
 export function getVersionLabel(): string {
   const installed = getInstalledSha();
@@ -151,25 +159,68 @@ export async function checkForUpdate(): Promise<VersionInfo> {
 }
 
 /**
- * Simulates the update installation sequence.
+ * Performs the AmPOS update.
  *
- * Calls `onStep` with each progress line as it becomes "available"
- * (each step is delayed to mimic real git/npm activity).
+ * **Electron path** (when `window.electronAPI` is present):
+ *   Sends `ampos:run-update` via IPC which spawns:
+ *     git pull https://github.com/pranto48/ampos.git main && npm install && npm run build
+ *   Each stdout/stderr chunk is forwarded to `onStep` in real-time.
+ *   Resolves with the new remote SHA on exit code 0, rejects otherwise.
  *
- * Returns the new remote SHA on success, or throws on fetch failure.
+ * **Browser / dev path** (fallback):
+ *   Simulates the 4-step sequence with realistic delays and resolves with
+ *   the remote SHA from the GitHub API.
+ *
+ * @param onStep  Called with each output line / chunk.
+ * @returns       The new installed SHA on success.
+ * @throws        Error with message 'already_up_to_date' | fetch error | shell error.
  */
 export async function performUpdate(
   onStep: (line: string) => void
 ): Promise<string> {
+  // ── Real Electron path ────────────────────────────────────────────────────
+  if (isElectron()) {
+    // Fetch the remote SHA first so we know what to persist on success.
+    const vInfo = await checkForUpdate();
+
+    if (vInfo.fetchError) throw new Error(vInfo.fetchError);
+    if (!vInfo.updateAvailable) throw new Error('already_up_to_date');
+
+    return new Promise<string>((resolve, reject) => {
+      const cleanup = window.electronAPI!.runUpdate(
+        // onData: stream raw shell output straight into the terminal
+        (chunk: string) => {
+          // Split on newlines so each line becomes a discrete terminal line.
+          chunk.split(/\r?\n/).forEach((ln) => {
+            if (ln !== '') onStep(ln);
+          });
+        },
+        // onDone: check exit code
+        ({ code, signal }) => {
+          if (code === 0) {
+            // Persist the SHA so check-update reflects the new state.
+            saveInstalledSha(vInfo.remoteFull!);
+            resolve(vInfo.remoteFull!);
+          } else {
+            const reason = signal
+              ? `process killed by signal ${signal}`
+              : `process exited with code ${code}`;
+            reject(new Error(`Update failed: ${reason}`));
+          }
+        }
+      );
+
+      // Safety net: if something goes wrong before onDone fires,
+      // the caller can GC the closure and cleanup() removes the listeners.
+      void cleanup; // referenced so linters don't complain
+    });
+  }
+
+  // ── Simulated browser / dev path ─────────────────────────────────────────
   const info = await checkForUpdate();
 
-  if (info.fetchError) {
-    throw new Error(info.fetchError);
-  }
-
-  if (!info.updateAvailable) {
-    throw new Error('already_up_to_date');
-  }
+  if (info.fetchError) throw new Error(info.fetchError);
+  if (!info.updateAvailable) throw new Error('already_up_to_date');
 
   const delay = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
@@ -185,8 +236,6 @@ export async function performUpdate(
   onStep('[4/4] Rebuilding AmPOS bundle...');
   await delay(1500);
 
-  // Persist the new SHA so future checks reflect the updated state.
   saveInstalledSha(info.remoteFull!);
-
   return info.remoteFull!;
 }

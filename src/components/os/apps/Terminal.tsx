@@ -15,6 +15,13 @@ import {
   getVersionLabel,
   shortSha,
 } from '@/services/amposUpdateService';
+import {
+  getSetupConfig,
+  resetSetupConfig,
+  getEffectiveNetwork,
+  subnetToCidr,
+  AMPOS_VERSION,
+} from '@/services/setupConfigService';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -24,10 +31,13 @@ interface TerminalLine {
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
+// Resolved lazily from localStorage so the Terminal always reflects the
+// latest saved setup config without requiring a page reload.
 
-const HOSTNAME = 'ampos-srv';
-const USERNAME = 'admin';
-const PROMPT = `${USERNAME}@${HOSTNAME}:~$`;
+const cfg = () => getSetupConfig();
+const HOSTNAME = () => cfg().hostname;
+const USERNAME = () => cfg().adminUsername;
+const PROMPT   = () => `${USERNAME()}@${HOSTNAME()}:~$`;
 
 // ─── Line factories ───────────────────────────────────────────────────────────
 
@@ -37,16 +47,23 @@ const info = (content: string): TerminalLine => ({ type: 'info',   content });
 const warn = (content: string): TerminalLine => ({ type: 'warn',   content });
 
 // ─── Static MOTD (update hint injected dynamically after mount) ───────────────
+// Built at mount time so it captures the current config snapshot.
 
-const BASE_MOTD: TerminalLine[] = [
-  info('AmPOS Linux Server - Web Edition  (GNU/Linux 6.6.21-amd64 x86_64)'),
-  out(''),
-  out(' * Documentation:  https://portal.itsupport.com.bd'),
-  out(` * Version:        ${getVersionLabel()} [${shortSha(getInstalledSha())}]`),
-  out(''),
-  out(`Last login: ${new Date().toDateString()} from 192.168.1.1`),
-  out(''),
-];
+const buildMotd = (): TerminalLine[] => {
+  const c = cfg();
+  const net = getEffectiveNetwork(c);
+  return [
+    info('AmPOS Linux Server - Web Edition  (GNU/Linux 6.6.21-amd64 x86_64)'),
+    out(''),
+    out(' * Documentation:  https://portal.itsupport.com.bd'),
+    out(` * Version:        ${getVersionLabel()} [${shortSha(getInstalledSha())}]`),
+    out(` * Hostname:       ${c.hostname}`),
+    out(` * IP Address:     ${net.ip} (${c.networkMode.toUpperCase()})`),
+    out(''),
+    out(`Last login: ${new Date().toDateString()} from ${net.gateway}`),
+    out(''),
+  ];
+};
 
 // ─── Synchronous command map ──────────────────────────────────────────────────
 // Async commands (check-update, ampos-update) are handled separately below.
@@ -60,27 +77,33 @@ const SYNC_COMMANDS: Record<string, SyncCmdFn> = {
   help: () => [
     out(''),
     info('Available commands:'),
-    out('  help            Show this help message'),
-    out('  clear           Clear the terminal'),
-    out('  echo            Echo text to stdout'),
-    out('  date            Print current date/time'),
-    out('  whoami          Print current user'),
-    out('  hostname        Print system hostname'),
-    out('  uptime          Show system uptime'),
-    out('  uname           Print kernel/OS info'),
-    out('  ls              List directory contents'),
-    out('  pwd             Print working directory'),
-    out('  env             List environment variables'),
-    out('  ps              Show running processes'),
-    out('  df              Report disk usage'),
-    out('  free            Display memory usage'),
-    out('  neofetch        System info summary'),
-    out('  check-update    Check for available OS updates'),
-    out('  ampos-update    Download and install latest update'),
-    out('  reboot          Reboot the session (re-login)'),
-    out('  systemctl       Manage system services'),
-    out('  logout          Log out of the session'),
-    out('  exit            Alias for logout'),
+    out('  help                  Show this help message'),
+    out('  clear                 Clear the terminal'),
+    out('  echo                  Echo text to stdout'),
+    out('  date                  Print current date/time'),
+    out('  whoami                Print current user'),
+    out('  hostname              Print system hostname'),
+    out('  uptime                Show system uptime'),
+    out('  uname                 Print kernel/OS info'),
+    out('  ls                    List directory contents'),
+    out('  pwd                   Print working directory'),
+    out('  env                   List environment variables'),
+    out('  ps                    Show running processes'),
+    out('  df                    Report disk usage'),
+    out('  free                  Display memory usage'),
+    out('  ifconfig              Show network interface configuration'),
+    out('  ip a                  Alias for ifconfig'),
+    out('  netstat -tuln         Show listening ports'),
+    out('  ss -tuln              Alias for netstat'),
+    out('  cat /etc/os-release   Show OS release information'),
+    out('  neofetch              System info summary'),
+    out('  check-update          Check for available OS updates'),
+    out('  ampos-update          Download and install latest update'),
+    out('  ampos-reset           Factory reset (clears all config)'),
+    out('  reboot                Reboot the session (re-login)'),
+    out('  systemctl             Manage system services'),
+    out('  logout                Log out of the session'),
+    out('  exit                  Alias for logout'),
     out(''),
   ],
 
@@ -91,8 +114,8 @@ const SYNC_COMMANDS: Record<string, SyncCmdFn> = {
 
   echo: (args) => [out(args.join(' '))],
   date: () => [out(new Date().toString())],
-  whoami: () => [out(USERNAME)],
-  hostname: () => [out(HOSTNAME)],
+  whoami: () => [out(USERNAME())],
+  hostname: () => [out(HOSTNAME())],
 
   uptime: () => {
     const h = Math.floor(Math.random() * 48) + 1;
@@ -101,9 +124,10 @@ const SYNC_COMMANDS: Record<string, SyncCmdFn> = {
   },
 
   uname: (args) => {
+    const c = cfg();
     const full = args.includes('-a') || args.includes('--all');
     return full
-      ? [out('Linux ampos-srv 6.6.21-amd64 #1 SMP PREEMPT_DYNAMIC Debian 6.6.21-1 (2024-04-12) x86_64 GNU/Linux')]
+      ? [out(`Linux ${c.hostname} 6.6.21-amd64 #1 SMP PREEMPT_DYNAMIC Debian 6.6.21-1 (2024-04-12) x86_64 GNU/Linux`)]
       : [out('Linux')];
   },
 
@@ -117,15 +141,18 @@ const SYNC_COMMANDS: Record<string, SyncCmdFn> = {
     return [out(entries.join('  '))];
   },
 
-  env: () => [
-    out('HOME=/home/admin'),
-    out('USER=admin'),
-    out(`HOSTNAME=${HOSTNAME}`),
-    out('SHELL=/bin/bash'),
-    out('TERM=xterm-256color'),
-    out('LANG=en_US.UTF-8'),
-    out('PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'),
-  ],
+  env: () => {
+    const c = cfg();
+    return [
+      out(`HOME=/home/${c.adminUsername}`),
+      out(`USER=${c.adminUsername}`),
+      out(`HOSTNAME=${c.hostname}`),
+      out('SHELL=/bin/bash'),
+      out('TERM=xterm-256color'),
+      out('LANG=en_US.UTF-8'),
+      out('PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'),
+    ];
+  },
 
   ps: () => [
     out('  PID TTY          TIME CMD'),
@@ -148,18 +175,157 @@ const SYNC_COMMANDS: Record<string, SyncCmdFn> = {
     out('Swap:        2097148           0     2097148'),
   ],
 
-  neofetch: () => [
-    out(''),
-    out(`        ██████████████         ${USERNAME}@${HOSTNAME}`),
-    out('       ███          ███        ─────────────────────────────────'),
-    out(`      ███  ████████  ███       OS:         AmPOS Linux 1.0`),
-    out('      ███  ████████  ███       Kernel:     6.6.21-amd64'),
-    out('      ███  ████████  ███       Shell:      AmPOS Terminal'),
-    out('       ███          ███        CPU:        Intel Core i5-1135G7'),
-    out(`        ██████████████         Version:    ${getVersionLabel()} [${shortSha(getInstalledSha())}]`),
-    out(`                               Resolution: ${window.innerWidth}x${window.innerHeight}`),
-    out(''),
-  ],
+  neofetch: () => {
+    const c = cfg();
+    const net = getEffectiveNetwork(c);
+    return [
+      out(''),
+      out(`        ██████████████         ${c.adminUsername}@${c.hostname}`),
+      out('       ███          ███        ─────────────────────────────────────'),
+      out(`      ███  ████████  ███       OS:         AmPOS Linux ${AMPOS_VERSION}`),
+      out('      ███  ████████  ███       Kernel:     6.6.21-amd64'),
+      out('      ███  ████████  ███       Shell:      AmPOS Terminal'),
+      out('       ███          ███        CPU:        Intel Core i5-1135G7'),
+      out(`        ██████████████         IP:         ${net.ip} (${c.networkMode.toUpperCase()})`),
+      out(`                               Version:    ${getVersionLabel()} [${shortSha(getInstalledSha())}]`),
+      out(`                               Resolution: ${window.innerWidth}x${window.innerHeight}`),
+      out(''),
+    ];
+  },
+
+  // ── Network commands ──────────────────────────────────────────────────────
+
+  ifconfig: () => {
+    const c = cfg();
+    const net = getEffectiveNetwork(c);
+    const cidr = subnetToCidr(net.subnet);
+    return [
+      out(`${c.networkInterface}: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500`),
+      out(`        inet ${net.ip}  netmask ${net.subnet}  broadcast ${net.ip.replace(/\.\d+$/, '.255')}`),
+      out(`        ether ${c.macAddress}  txqueuelen 1000  (Ethernet)`),
+      out(`        RX packets 184293  bytes 220718423 (210.4 MiB)`),
+      out(`        TX packets 97341   bytes 12048271 (11.4 MiB)`),
+      out(''),
+      out('lo: flags=73<UP,LOOPBACK,RUNNING>  mtu 65536'),
+      out('        inet 127.0.0.1  netmask 255.0.0.0'),
+      out('        loop  txqueuelen 1000  (Local Loopback)'),
+      out(''),
+    ];
+  },
+
+  ip: (args) => {
+    // Support: ip a  /  ip addr  /  ip route
+    const sub = args[0] ?? 'a';
+    const c = cfg();
+    const net = getEffectiveNetwork(c);
+    const cidr = subnetToCidr(net.subnet);
+
+    if (sub === 'route' || sub === 'r') {
+      return [
+        out(`default via ${net.gateway} dev ${c.networkInterface} proto dhcp src ${net.ip} metric 100`),
+        out(`${net.ip.replace(/\.\d+$/, '.0')}/${cidr} dev ${c.networkInterface} proto kernel scope link src ${net.ip}`),
+      ];
+    }
+
+    // ip a / ip addr
+    return [
+      out('1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN'),
+      out('    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00'),
+      out('    inet 127.0.0.1/8 scope host lo'),
+      out(''),
+      out(`2: ${c.networkInterface}: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP`),
+      out(`    link/ether ${c.macAddress} brd ff:ff:ff:ff:ff:ff`),
+      out(`    inet ${net.ip}/${cidr} brd ${net.ip.replace(/\.\d+$/, '.255')} scope global ${c.networkMode === 'dhcp' ? 'dynamic ' : ''}${c.networkInterface}`),
+      out(''),
+    ];
+  },
+
+  netstat: (args) => {
+    const c = cfg();
+    const net = getEffectiveNetwork(c);
+    const showAll = args.some(a => a.includes('t') || a.includes('u') || a.includes('l'));
+    return [
+      out('Active Internet connections (only servers)'),
+      out('Proto Recv-Q Send-Q Local Address           Foreign Address         State'),
+      out(`tcp        0      0 0.0.0.0:${c.webPort}            0.0.0.0:*               LISTEN`),
+      out(`tcp        0      0 0.0.0.0:${c.sshPort}             0.0.0.0:*               LISTEN`),
+      out(`tcp        0      0 0.0.0.0:${c.ftpPort}             0.0.0.0:*               LISTEN`),
+      out(`tcp6       0      0 :::${c.webPort}                  :::*                    LISTEN`),
+      out(`tcp6       0      0 :::${c.sshPort}                   :::*                    LISTEN`),
+      out(''),
+    ];
+  },
+
+  ss: (args) => {
+    const c = cfg();
+    return [
+      out('Netid  State   Recv-Q  Send-Q  Local Address:Port  Peer Address:Port  Process'),
+      out(`tcp    LISTEN  0       128     0.0.0.0:${c.sshPort}          0.0.0.0:*          users:(("sshd",pid=412,fd=3))`),
+      out(`tcp    LISTEN  0       128     0.0.0.0:${c.ftpPort}          0.0.0.0:*          users:(("vsftpd",pid=598,fd=3))`),
+      out(`tcp    LISTEN  0       511     0.0.0.0:${c.webPort}          0.0.0.0:*          users:(("nginx",pid=723,fd=6))`),
+      out(`tcp    LISTEN  0       128     [::]:${c.sshPort}              [::]:*             users:(("sshd",pid=412,fd=4))`),
+      out(''),
+    ];
+  },
+
+  cat: (args) => {
+    const path = args[0] ?? '';
+    if (path === '/etc/os-release' || path === '/etc/os_release') {
+      const c = cfg();
+      const net = getEffectiveNetwork(c);
+      return [
+        out('NAME="AmPOS Linux"'),
+        out(`VERSION="${AMPOS_VERSION} (Stable)"`),
+        out(`ID=ampos`),
+        out(`VERSION_ID="${AMPOS_VERSION}"`),
+        out(`PRETTY_NAME="AmPOS Linux ${AMPOS_VERSION} (GNU/Linux 6.6.21-amd64)"`),
+        out(`HOME_URL="https://ampos.itsupport.com.bd"`),
+        out(`SUPPORT_URL="https://portal.itsupport.com.bd"`),
+        out(`BUILD_ID="${shortSha(getInstalledSha())}"`),
+        out(`HOSTNAME="${c.hostname}"`),
+        out(`IP_ADDRESS="${net.ip}"`),
+        out(`NETWORK_MODE="${c.networkMode}"`),
+      ];
+    }
+    if (path === '/etc/hostname') {
+      return [out(cfg().hostname)];
+    }
+    if (path === '/etc/hosts') {
+      const c = cfg();
+      const net = getEffectiveNetwork(c);
+      return [
+        out('127.0.0.1   localhost'),
+        out(`127.0.1.1   ${c.hostname}`),
+        out(`${net.ip}    ${c.hostname} ${c.hostname}.local`),
+        out('::1         localhost ip6-localhost ip6-loopback'),
+      ];
+    }
+    return [err(`cat: ${path}: No such file or directory`)];
+  },
+
+  // ── Factory reset ─────────────────────────────────────────────────────────
+
+  'ampos-reset': (_args, { setLines }) => {
+    resetSetupConfig();
+    const confirmLines: TerminalLine[] = [
+      out(''),
+      warn('⚠  Factory reset initiated.'),
+      info('Clearing configuration data...'),
+      info('[  OK  ] Removed network configuration.'),
+      info('[  OK  ] Removed service port configuration.'),
+      info('[  OK  ] Removed update state.'),
+      info('[  OK  ] Removed theme and wallpaper settings.'),
+      out(''),
+      warn('Factory reset complete. System going down...'),
+      out(''),
+    ];
+    // Show messages, then reload after a short pause
+    setTimeout(() => {
+      setLines(confirmLines);
+      setTimeout(() => window.location.reload(), 2000);
+    }, 100);
+    return [];
+  },
 
   systemctl: (args) => {
     const sub = args[0] ?? '';
@@ -179,7 +345,13 @@ const SYNC_COMMANDS: Record<string, SyncCmdFn> = {
   },
 
   reboot: (_args, { logout }) => {
-    setTimeout(logout, 800);
+    if (window.electronAPI) {
+      // Inside Electron: relaunch the process to load freshly-built dist/ files.
+      setTimeout(() => window.electronAPI!.reboot(), 800);
+    } else {
+      // Browser / dev fallback: cycle back to the login screen.
+      setTimeout(logout, 800);
+    }
     return [
       out(''),
       info('Stopping AmPOS runtime...'),
@@ -205,7 +377,7 @@ const SYNC_COMMANDS: Record<string, SyncCmdFn> = {
 const Terminal: React.FC = () => {
   const { logout } = useOS();
 
-  const [lines, setLines] = useState<TerminalLine[]>(BASE_MOTD);
+  const [lines, setLines] = useState<TerminalLine[]>(() => buildMotd());
   const [currentInput, setCurrentInput] = useState('');
   const [history, setHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
@@ -318,7 +490,7 @@ const Terminal: React.FC = () => {
 
       const raw = currentInput;
       const trimmed = raw.trim();
-      const echoLine: TerminalLine = { type: 'input', content: `${PROMPT} ${raw}` };
+      const echoLine: TerminalLine = { type: 'input', content: `${PROMPT()} ${raw}` };
 
       if (!trimmed) {
         setLines((prev) => [...prev, echoLine]);
@@ -443,7 +615,7 @@ const Terminal: React.FC = () => {
           style={{ display: 'flex', alignItems: 'center', marginTop: 2 }}
         >
           <span style={{ color: '#4ade80', whiteSpace: 'pre', userSelect: 'none' }}>
-            {PROMPT}{' '}
+            {PROMPT()}{' '}
           </span>
           <input
             ref={inputRef}

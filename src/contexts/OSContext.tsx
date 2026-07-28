@@ -8,10 +8,17 @@
  */
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 import { Window, User } from '@/types/os';
+import { getSetupConfig, isConfigured } from '@/services/setupConfigService';
 
 // ─── Phase ────────────────────────────────────────────────────────────────────
 
-export type OsPhase = 'booting' | 'logging_in' | 'desktop';
+/**
+ * Phase state machine:
+ *
+ *   First boot:    booting ──► setup ──► logging_in ──► desktop
+ *   Subsequent:    booting ──────────► logging_in ──► desktop
+ */
+export type OsPhase = 'booting' | 'setup' | 'logging_in' | 'desktop';
 
 // ─── Context shape ────────────────────────────────────────────────────────────
 
@@ -59,6 +66,9 @@ let zIndexCounter = 100;
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
 export const OSProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  // On first boot (no ampos_configured key) start in 'booting'; the BootScreen
+  // will then transition to 'setup' via the onComplete callback in Index.tsx.
+  // On subsequent boots, BootScreen transitions straight to 'logging_in'.
   const [phase, setPhase] = useState<OsPhase>('booting');
   const [windows, setWindows] = useState<Window[]>([]);
   const [activeWindowId, setActiveWindowId] = useState<string | null>(null);
@@ -151,12 +161,17 @@ export const OSProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
 
   const login = useCallback(
     (username: string, password: string): boolean => {
-      // Demo credentials — replace with real auth in production
-      if (username === 'admin' && password === 'admin') {
+      // Read credentials from localStorage setup config.
+      // Falls back to 'admin' / 'admin' on first boot before any setup is saved.
+      const storedCfg = getSetupConfig();
+      const expectedUser = storedCfg.adminUsername || 'admin';
+      const expectedPass = storedCfg.adminPassword || 'admin';
+
+      if (username === expectedUser && password === expectedPass) {
         setUser({
           id: '1',
-          username: 'admin',
-          email: 'admin@itsupport.com.bd',
+          username: expectedUser,
+          email: `${expectedUser}@${storedCfg.hostname}`,
           role: 'admin',
         });
         setIsLocked(false);

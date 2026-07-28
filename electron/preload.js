@@ -9,21 +9,54 @@
 /**
  * preload.js
  *
- * Runs in the renderer's context before any web content loads.
- * Use contextBridge to safely expose APIs from the main process
- * to the renderer without enabling full Node.js access.
+ * Exposes a minimal, typed surface area to the renderer via contextBridge.
+ * All node/Electron APIs stay inside the main process; the renderer only
+ * calls the functions defined here.
  *
- * Example:
- *   const { contextBridge, ipcRenderer } = require('electron');
- *
- *   contextBridge.exposeInMainWorld('electronAPI', {
- *     sendMessage: (channel, data) => ipcRenderer.send(channel, data),
- *     onMessage: (channel, callback) =>
- *       ipcRenderer.on(channel, (_event, ...args) => callback(...args)),
- *   });
+ * window.electronAPI shape:
+ *   runUpdate(onData, onDone) – starts the real git+npm update pipeline,
+ *     streaming stdout/stderr to onData and calling onDone({code,signal})
+ *     when the process exits. Returns a cleanup function that removes the
+ *     listeners (call it when the Terminal component unmounts).
+ *   reboot()                  – relaunches the Electron app process.
  */
 
-// No APIs exposed by default; extend as needed.
-window.addEventListener('DOMContentLoaded', () => {
-  // The renderer DOM is ready.
+const { contextBridge, ipcRenderer } = require('electron');
+
+contextBridge.exposeInMainWorld('electronAPI', {
+  /**
+   * Starts the real OS update (git pull → npm install → npm run build).
+   *
+   * @param {(chunk: string) => void} onData  – called for every stdout/stderr chunk
+   * @param {(result: { code: number|null, signal: string|null }) => void} onDone
+   * @returns {() => void} cleanup – call this to remove event listeners
+   */
+  runUpdate(onData, onDone) {
+    const dataHandler = (_event, chunk) => onData(chunk);
+    const doneHandler = (_event, result) => {
+      onDone(result);
+      // Auto-cleanup after done so listeners don't accumulate across sessions.
+      ipcRenderer.removeListener('ampos:update-data', dataHandler);
+      ipcRenderer.removeListener('ampos:update-done', doneHandler);
+    };
+
+    ipcRenderer.on('ampos:update-data', dataHandler);
+    ipcRenderer.on('ampos:update-done', doneHandler);
+
+    // Kick off the shell pipeline in the main process.
+    ipcRenderer.send('ampos:run-update');
+
+    // Return explicit cleanup for callers that want early teardown.
+    return () => {
+      ipcRenderer.removeListener('ampos:update-data', dataHandler);
+      ipcRenderer.removeListener('ampos:update-done', doneHandler);
+    };
+  },
+
+  /**
+   * Relaunches the Electron process so freshly-built dist/ files are loaded.
+   */
+  reboot() {
+    ipcRenderer.send('ampos:reboot');
+  },
 });

@@ -8,6 +8,7 @@
  */
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useOS } from '@/contexts/OSContext';
+import { getSetupConfig, getEffectiveNetwork } from '@/services/setupConfigService';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -19,12 +20,17 @@ interface TerminalLine {
   color?: 'white' | 'green' | 'red' | 'dim';
 }
 
-// ─── Constants ────────────────────────────────────────────────────────────────
+// ─── Config (resolved once at module load; stable for the lifetime of the screen) ───
 
-const HOSTNAME = 'ampos';
+const _cfg  = getSetupConfig();
+const _net  = getEffectiveNetwork(_cfg);
+
+const HOSTNAME = _cfg.hostname;
+
+/** Header lines shown at the top of the TTY screen. */
 const OS_HEADER = [
-  'AmPOS Linux Server - Web Edition',
-  'Kernel 6.6.21-amd64 on an x86_64',
+  `AmPOS Linux Server - Web Edition (IP: ${_net.ip})`,
+  `Kernel 6.6.21-amd64 on an x86_64  |  Host: ${HOSTNAME}`,
   '',
 ] as const;
 
