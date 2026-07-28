@@ -9,21 +9,33 @@
 import React from 'react';
 import { OSProvider, useOS } from '@/contexts/OSContext';
 import BootScreen from '@/components/os/BootScreen';
+import SetupScreen from '@/components/os/SetupScreen';
 import LoginScreen from '@/components/os/LoginScreen';
 import Desktop from '@/components/os/Desktop';
+import { isConfigured } from '@/services/setupConfigService';
 
 /**
- * OSContent drives the top-level phase state machine:
+ * OSContent drives the top-level phase state machine.
  *
- *   booting  ──onComplete──►  logging_in  ──login()──►  desktop
- *                                  ▲                       │
- *                                  └──────logout()─────────┘
+ * First boot  (ampos_configured absent):
+ *   booting ──onComplete──► setup ──onComplete──► logging_in ──login()──► desktop
+ *                                                      ▲                      │
+ *                                                      └──────logout()────────┘
+ *
+ * Subsequent boots (ampos_configured = 'true'):
+ *   booting ──onComplete──► logging_in ──login()──► desktop
  */
 const OSContent: React.FC = () => {
   const { phase, setPhase } = useOS();
 
   if (phase === 'booting') {
-    return <BootScreen onComplete={() => setPhase('logging_in')} />;
+    // After the boot animation, go to setup on first boot, login otherwise.
+    const next = isConfigured() ? 'logging_in' : 'setup';
+    return <BootScreen onComplete={() => setPhase(next)} />;
+  }
+
+  if (phase === 'setup') {
+    return <SetupScreen onComplete={() => setPhase('logging_in')} />;
   }
 
   if (phase === 'logging_in') {
